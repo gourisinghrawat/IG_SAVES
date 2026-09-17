@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "InstaReelRAG Scraper & RAG Search",
+  "version": "1.0",
+  "description": "Auto-scroll saved Instagram Reels, extract links & captions, and ingest into local InstaReelRAG server.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.instagram.com/*",
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "InstaReelRAG Extractor"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.instagram.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

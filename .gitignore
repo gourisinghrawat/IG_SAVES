@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Environment variables
+.env
+.env.local
+
+# InstaReelRAG Data Storage (Large media & vector DB)
+data/raw_reels/
+data/audio/
+data/keyframes/
+data/qdrant_db/
+
+# Next.js / Node.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel
+frontend/*.tsbuildinfo
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# IDE & OS Junk
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

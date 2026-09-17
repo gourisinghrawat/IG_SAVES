@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>InstaReelRAG Chrome Extension</title>
+  <style>
+    body {
+      width: 350px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background-color: #0e1117;
+      color: #ffffff;
+    }
+    h2 {
+      font-size: 16px;
+      margin: 0 0 4px 0;
+      color: #00ff66;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    p.subtitle {
+      font-size: 11px;
+      color: #8b949e;
+      margin: 0 0 16px 0;
+    }
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .stat-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .stat-number {
+      font-size: 20px;
+      font-weight: bold;
+      color: #00ff66;
+    }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: opacity 0.2s;
+    }
+    .btn:hover {
+      opacity: 0.9;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #00c853, #00e676);
+      color: #000;
+    }
+    .btn-stop {
+      background: #da3633;
+      color: #fff;
+    }
+    .btn-ingest {
+      background: linear-gradient(135deg, #2979ff, #29b6f6);
+      color: #fff;
+    }
+    .status-badge {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #21262d;
+    }
+    .online { color: #00ff66; }
+    .offline { color: #ff5252; }
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background: #0d1117;
+      color: #fff;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    #answerBox {
+      font-size: 11px;
+      line-height: 1.4;
+      color: #e6edf3;
+      background: #0d1117;
+      padding: 8px;
+      border-radius: 6px;
+      max-height: 120px;
+      overflow-y: auto;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h2>🎬 InstaReelRAG</h2>
+  <p class="subtitle">Auto-Scraper & RAG Search for Saved Reels</p>
+
+  <div class="card">
+    <div class="stat-box">
+      <span>Scraped Reels Found:</span>
+      <span class="stat-number" id="scrapedCount">0</span>
+    </div>
+    <div class="stat-box">
+      <span>FastAPI Backend:</span>
+      <span class="status-badge" id="apiStatus">Checking...</span>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="startBtn">▶️ Start Auto-Scroll & Scrape</button>
+  <button class="btn btn-stop" id="stopBtn" style="display:none;">⏹️ Stop Scraper</button>
+  <button class="btn btn-ingest" id="ingestBtn">🚀 Ingest Scraped Reels to RAG</button>
+
+  <div class="card" style="margin-top: 12px;">
+    <div style="font-weight: 600; font-size: 12px; margin-bottom: 6px;">🔍 Quick RAG Search</div>
+    <input type="text" id="queryInput" placeholder="Ask about saved reels...">
+    <button class="btn btn-primary" id="searchBtn" style="background:#388e3c; color:#fff;">Search RAG</button>
+    <div id="answerBox"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
