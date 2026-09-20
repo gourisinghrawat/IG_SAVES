@@ -16,7 +16,9 @@ import {
   Loader2,
   RefreshCw,
   User,
-  MessageSquare
+  MessageSquare,
+  ArrowRight,
+  Filter
 } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8000';
@@ -37,22 +39,22 @@ interface SearchResult {
 interface SearchResponse {
   query: string;
   answer: string;
-  engine: str;
+  engine: string;
   results: SearchResult[];
 }
 
 interface IngestResponse {
-  status: str;
-  video_id: str;
+  status: string;
+  video_id: string;
   total_frames: number;
   unique_frames: number;
   removed_frames: number;
   transcripts_count: number;
-  webpage_url: str;
+  webpage_url: string;
 }
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<'ingest' | 'search'>('ingest');
+  const [activeTab, setActiveTab] = useState<'search' | 'ingest'>('search');
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [ollamaOnline, setOllamaOnline] = useState<boolean>(false);
 
@@ -150,88 +152,182 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-darkBg text-slate-100">
-      {/* HEADER */}
-      <header className="border-b border-darkBorder bg-darkCard/80 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-accentGreen to-emerald-400 flex items-center justify-center text-darkBg shadow-lg shadow-accentGreen/20">
-              <Film className="w-5 h-5 font-bold" />
-            </div>
-            <div>
-              <h1 className="font-bold text-lg leading-tight flex items-center gap-2">
-                InstaReelRAG <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-accentGreen/10 text-accentGreen border border-accentGreen/20">v1.0 Local</span>
-              </h1>
-              <p className="text-xs text-slate-400">Multimodal Reel Transcription & CLIP RAG Engine</p>
-            </div>
+    <div className="min-h-screen bg-butterBg text-darkText font-sans selection:bg-butterAccent selection:text-black">
+      
+      {/* TOP NEO-BRUTALIST NAVBAR (MATCHING REFERENCE IMAGE) */}
+      <header className="border-b-[2.5px] border-black bg-white py-4 px-4 sm:px-8 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          
+          {/* LOGO & TITLE */}
+          <div className="flex items-center space-x-2">
+            <span className="font-black text-2xl tracking-tight text-black">
+              InstaReel<span className="text-black">RAG</span>
+            </span>
           </div>
 
-          {/* SYSTEM HEALTH BADGE */}
-          <div className="flex items-center space-x-3">
-            <div className={`flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full border ${
-              apiStatus === 'online'
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                : apiStatus === 'offline'
-                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                : 'bg-slate-800 text-slate-400 border-slate-700'
-            }`}>
-              {apiStatus === 'checking' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {apiStatus === 'online' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
-              {apiStatus === 'offline' && <AlertCircle className="w-3.5 h-3.5 text-rose-400" />}
-              <span>FastAPI Backend: {apiStatus.toUpperCase()}</span>
-            </div>
-
-            <button 
-              onClick={checkHealth} 
-              title="Refresh API Status" 
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+          {/* NAVBAR RIGHT-ALIGNED TEXT LINKS (MATCHING REFERENCE UI) */}
+          <div className="flex items-center space-x-5 sm:space-x-8">
+            <button
+              onClick={() => setActiveTab('search')}
+              className={`font-black text-sm sm:text-base tracking-tight transition-all cursor-pointer ${
+                activeTab === 'search'
+                  ? 'text-black underline underline-offset-8 decoration-[2.5px] decoration-black'
+                  : 'text-slate-800 hover:text-black hover:underline hover:underline-offset-8'
+              }`}
             >
-              <RefreshCw className="w-4 h-4" />
+              Browse
             </button>
+
+            <button
+              onClick={() => setActiveTab('ingest')}
+              className={`font-black text-sm sm:text-base tracking-tight transition-all cursor-pointer ${
+                activeTab === 'ingest'
+                  ? 'text-black underline underline-offset-8 decoration-[2.5px] decoration-black'
+                  : 'text-slate-800 hover:text-black hover:underline hover:underline-offset-8'
+              }`}
+            >
+              Ingest Reel
+            </button>
+
+            <a
+              href={`${API_BASE}/docs`}
+              target="_blank"
+              rel="noreferrer"
+              className="hidden sm:inline-block font-black text-sm sm:text-base tracking-tight text-slate-800 hover:text-black hover:underline hover:underline-offset-8 transition-all"
+            >
+              API Docs
+            </a>
+
+            {/* STATUS BADGE STYLED LIKE GITHUB STAR PILL IN REFERENCE IMAGE */}
+            <div className={`flex items-center space-x-1.5 text-xs font-black px-3.5 py-1.5 rounded-xl border-2 border-black shadow-[2.5px_2.5px_0px_0px_#000] cursor-pointer transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] ${
+              apiStatus === 'online'
+                ? 'bg-butterAccent text-black'
+                : apiStatus === 'offline'
+                ? 'bg-rose-200 text-black'
+                : 'bg-amber-100 text-black'
+            }`} onClick={checkHealth} title="FastAPI Status - Click to Refresh">
+              <CheckCircle2 className="w-3.5 h-3.5 text-black font-bold" />
+              <span>FastAPI</span>
+              <span className="text-amber-700 font-extrabold">★ {apiStatus === 'online' ? 'Online' : 'Offline'}</span>
+            </div>
           </div>
+
         </div>
       </header>
 
+      {/* HERO SECTION */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-4">
+        <h1 className="text-4xl sm:text-5xl font-black text-black tracking-tight mb-2">
+          {activeTab === 'search' ? 'Browse & Search Reels' : 'Ingest Instagram Reels'}
+        </h1>
+        <p className="text-base font-semibold text-slate-700 max-w-2xl">
+          {activeTab === 'search'
+            ? 'Explore saved Instagram Reels with Faster-Whisper audio transcripts, GPU CLIP visual deduplication, and local hybrid RAG search.'
+            : 'Enter a Reel URL or Youtube Short to transcribe speech, sample frames, deduplicate keyframes with CLIP, and index vectors.'}
+        </p>
+      </section>
+
       {/* MAIN CONTAINER */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* TAB SWITCHER */}
-        <div className="flex space-x-2 border-b border-darkBorder mb-8">
-          <button
-            onClick={() => setActiveTab('ingest')}
-            className={`flex items-center space-x-2 px-5 py-3 font-medium text-sm border-b-2 transition-colors ${
-              activeTab === 'ingest'
-                ? 'border-accentGreen text-accentGreen bg-accentGreen/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Video className="w-4 h-4" />
-            <span>1. Ingest Reel URL</span>
-          </button>
+      <main className="max-w-7xl mx-auto px-4 sm:px-8 pb-16">
 
-          <button
-            onClick={() => setActiveTab('search')}
-            className={`flex items-center space-x-2 px-5 py-3 font-medium text-sm border-b-2 transition-colors ${
-              activeTab === 'search'
-                ? 'border-accentIndigo text-accentIndigo bg-accentIndigo/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Search className="w-4 h-4" />
-            <span>2. Multimodal RAG Search</span>
-          </button>
-        </div>
+        {/* NEO-BRUTALIST CONTROL / INPUT BOX */}
+        <div className="bg-butterCard border-[2.5px] border-black rounded-2xl p-6 sm:p-8 shadow-brutal mb-8">
+          
+          {/* CARD TOP INFO ROW */}
+          <div className="flex items-center justify-between gap-4 mb-6 border-b-2 border-black pb-4">
+            <div className="text-xs font-black uppercase tracking-widest text-black flex items-center gap-2">
+              {activeTab === 'search' ? (
+                <>
+                  <Search className="w-4 h-4 text-black" />
+                  <span>SEARCH REELS &amp; SPEECH TRANSCRIPTS</span>
+                </>
+              ) : (
+                <>
+                  <Video className="w-4 h-4 text-black" />
+                  <span>INGEST REEL URL (INSTAGRAM / YOUTUBE SHORTS)</span>
+                </>
+              )}
+            </div>
 
-        {/* TAB 1: INGEST */}
-        {activeTab === 'ingest' && (
-          <div className="space-y-6">
-            <div className="bg-darkCard border border-darkBorder rounded-2xl p-6 shadow-xl">
-              <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
-                <Video className="w-5 h-5 text-accentGreen" />
-                Ingest Reel or Video URL
-              </h2>
-              <p className="text-sm text-slate-400 mb-6">
-                Enter an Instagram Reel URL to automatically download, transcribe audio with Whisper, extract keyframes, deduplicate with CLIP, and index into local Qdrant Vector Store.
-              </p>
+            <div className="text-xs font-extrabold text-black uppercase tracking-wider flex items-center gap-1.5 bg-white border-2 border-black px-3 py-1.5 rounded-xl shadow-[2px_2px_0px_0px_#000]">
+              <Cpu className="w-3.5 h-3.5 text-black" />
+              <span>Ollama Model: {ollamaOnline ? 'Online (Qwen2-VL)' : 'Local Fallback'}</span>
+            </div>
+          </div>
+
+          {/* TAB 1: SEARCH REELS */}
+          {activeTab === 'search' && (
+            <div className="space-y-4">
+              <div className="text-xs font-black uppercase tracking-widest text-black mb-1">
+                SEARCH REELS &amp; SPEECH TRANSCRIPTS
+              </div>
+
+              <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-black font-bold" />
+                  </div>
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search query e.g. RAG evaluation, pasta recipes, keyboard builds..."
+                    required
+                    className="w-full pl-10 pr-4 py-3.5 rounded-xl bg-white border-2 border-black text-black font-bold placeholder-slate-500 text-sm focus:outline-none shadow-[2px_2px_0px_0px_#000] focus:shadow-brutal transition-all"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSearching || apiStatus !== 'online'}
+                  className="px-7 py-3.5 rounded-xl bg-black hover:bg-slate-900 text-butterAccent font-black text-sm uppercase tracking-wider border-2 border-black shadow-brutal-sm hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-brutal active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all min-w-[170px]"
+                >
+                  {isSearching ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-butterAccent" />
+                      <span>Searching...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Search Query</span>
+                      <ArrowRight className="w-4 h-4 text-butterAccent" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* QUICK EXAMPLE TAGS */}
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <span className="text-xs font-extrabold text-black uppercase tracking-wider mr-1">TRY:</span>
+                {['Evaluate RAG system', 'Quick dinner recipes', 'Mechanical keyboard setup', 'Workout routine'].map((tag, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setQuery(tag); }}
+                    className="text-xs font-bold text-black bg-white hover:bg-butterAccent border-2 border-black px-3 py-1 rounded-xl shadow-[2px_2px_0px_0px_#000] transition-all"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+
+              {searchError && (
+                <div className="mt-4 p-4 rounded-xl bg-rose-200 border-2 border-black text-black font-bold text-sm flex items-start space-x-3 shadow-brutal-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-black" />
+                  <div>
+                    <span className="font-extrabold block uppercase tracking-wider">Search Failure</span>
+                    <span>{searchError}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: INGEST REEL URL */}
+          {activeTab === 'ingest' && (
+            <div className="space-y-4">
+              <div className="text-xs font-black uppercase tracking-widest text-black mb-1">
+                INGEST REEL URL (INSTAGRAM / YOUTUBE SHORTS)
+              </div>
 
               <form onSubmit={handleIngest} className="flex flex-col sm:flex-row gap-3">
                 <input
@@ -240,258 +336,225 @@ export default function Dashboard() {
                   onChange={(e) => setReelUrl(e.target.value)}
                   placeholder="https://www.instagram.com/reel/..."
                   required
-                  className="flex-1 px-4 py-3 rounded-xl bg-darkBg border border-darkBorder focus:border-accentGreen focus:ring-1 focus:ring-accentGreen outline-none text-slate-100 placeholder-slate-500 text-sm transition-all"
+                  className="flex-1 px-4 py-3.5 rounded-xl bg-white border-2 border-black text-black font-bold placeholder-slate-500 text-sm focus:outline-none shadow-[2px_2px_0px_0px_#000] focus:shadow-brutal transition-all"
                 />
                 <button
                   type="submit"
                   disabled={isIngesting || apiStatus !== 'online'}
-                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-accentGreen hover:from-emerald-400 hover:to-emerald-300 text-darkBg font-semibold text-sm shadow-lg shadow-accentGreen/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all min-w-[160px]"
+                  className="px-7 py-3.5 rounded-xl bg-black hover:bg-slate-900 text-butterAccent font-black text-sm uppercase tracking-wider border-2 border-black shadow-brutal-sm hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-brutal active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all min-w-[170px]"
                 >
                   {isIngesting ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Processing...</span>
+                      <Loader2 className="w-4 h-4 animate-spin text-butterAccent" />
+                      <span>Ingesting...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>Process & Index</span>
+                      <Sparkles className="w-4 h-4 text-butterAccent" />
+                      <span>Process Reel</span>
                     </>
                   )}
                 </button>
               </form>
 
               {ingestError && (
-                <div className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-start space-x-3">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div className="mt-4 p-4 rounded-xl bg-rose-200 border-2 border-black text-black font-bold text-sm flex items-start space-x-3 shadow-brutal-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-black" />
                   <div>
-                    <span className="font-semibold block">Ingestion Error</span>
+                    <span className="font-extrabold block uppercase tracking-wider">Ingestion Error</span>
                     <span>{ingestError}</span>
                   </div>
                 </div>
               )}
             </div>
+          )}
 
-            {/* METRICS DASHBOARD */}
-            {ingestData && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-emerald-400 flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5" />
-                    Reel Processed Successfully! (ID: {ingestData.video_id})
+        </div>
+
+        {/* INGESTION METRICS DASHBOARD */}
+        {ingestData && (
+          <div className="mb-8 space-y-4">
+            <div className="bg-emerald-200 border-2 border-black rounded-2xl p-5 shadow-brutal flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <CheckCircle2 className="w-6 h-6 text-black" />
+                <div>
+                  <h3 className="font-black text-base uppercase tracking-wider text-black">
+                    Reel Processed Successfully!
                   </h3>
-                  {ingestData.webpage_url && (
-                    <a
-                      href={ingestData.webpage_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-slate-400 hover:text-accentGreen flex items-center gap-1 transition-colors"
-                    >
-                      <span>View Reel</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-darkCard border border-darkBorder rounded-xl p-5">
-                    <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-                      <span>Raw Frames Extracted</span>
-                      <Layers className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <div className="text-2xl font-bold text-slate-100">{ingestData.total_frames}</div>
-                  </div>
-
-                  <div className="bg-darkCard border border-accentGreen/30 rounded-xl p-5 shadow-lg shadow-accentGreen/5">
-                    <div className="flex items-center justify-between text-accentGreen text-xs mb-2">
-                      <span>Unique Keyframes Saved</span>
-                      <Film className="w-4 h-4 text-accentGreen" />
-                    </div>
-                    <div className="text-2xl font-bold text-accentGreen">{ingestData.unique_frames}</div>
-                  </div>
-
-                  <div className="bg-darkCard border border-darkBorder rounded-xl p-5">
-                    <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-                      <span>Redundant Frames Filtered</span>
-                      <Cpu className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <div className="text-2xl font-bold text-slate-100">{ingestData.removed_frames}</div>
-                  </div>
-
-                  <div className="bg-darkCard border border-darkBorder rounded-xl p-5">
-                    <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
-                      <span>Audio Transcripts</span>
-                      <Mic className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <div className="text-2xl font-bold text-slate-100">{ingestData.transcripts_count}</div>
-                  </div>
+                  <p className="text-xs font-bold text-slate-800">Reel ID: {ingestData.video_id}</p>
                 </div>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB 2: SEARCH */}
-        {activeTab === 'search' && (
-          <div className="space-y-6">
-            <div className="bg-darkCard border border-darkBorder rounded-2xl p-6 shadow-xl">
-              <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
-                <Search className="w-5 h-5 text-accentIndigo" />
-                Multimodal RAG Search
-              </h2>
-              <p className="text-sm text-slate-400 mb-6">
-                Query your indexed reels with natural language. Combines CLIP visual embeddings, Faster-Whisper audio transcripts, and BM25 full-text keyword search with RRF rank fusion.
-              </p>
-
-              <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="e.g. Find reels showing quick pasta recipes or mechanical keyboards"
-                  required
-                  className="flex-1 px-4 py-3 rounded-xl bg-darkBg border border-darkBorder focus:border-accentIndigo focus:ring-1 focus:ring-accentIndigo outline-none text-slate-100 placeholder-slate-500 text-sm transition-all"
-                />
-                <button
-                  type="submit"
-                  disabled={isSearching || apiStatus !== 'online'}
-                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all min-w-[160px]"
+              {ingestData.webpage_url && (
+                <a
+                  href={ingestData.webpage_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 rounded-xl bg-white border-2 border-black shadow-brutal-sm font-black text-xs hover:bg-butterAccent transition-all text-black flex items-center gap-1.5"
                 >
-                  {isSearching ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Searching...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4" />
-                      <span>Run Search</span>
-                    </>
-                  )}
-                </button>
-              </form>
-
-              {searchError && (
-                <div className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-start space-x-3">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold block">Search Error</span>
-                    <span>{searchError}</span>
-                  </div>
-                </div>
+                  <span>Open Reel</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
               )}
             </div>
 
-            {/* SEARCH RESULTS */}
-            {searchData && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                {/* AI ANSWER CARD */}
-                <div className="bg-darkCard border border-indigo-500/30 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-accentGreen" />
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      RAG Answer ({searchData.engine})
-                    </span>
-                  </div>
-                  <div className="text-slate-200 text-sm leading-relaxed whitespace-pre-line">
-                    {searchData.answer}
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white border-2 border-black rounded-2xl p-5 shadow-brutal">
+                <div className="text-xs font-black uppercase text-slate-600 mb-1">Raw Frames Extracted</div>
+                <div className="text-3xl font-black text-black">{ingestData.total_frames}</div>
+              </div>
 
-                {/* EVIDENCE CARDS */}
-                <div>
-                  <h3 className="text-base font-semibold text-slate-200 mb-4 flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-accentGreen" />
-                    Retrieved Multimodal Evidence & Timestamps ({searchData.results.length})
+              <div className="bg-butterAccent border-2 border-black rounded-2xl p-5 shadow-brutal">
+                <div className="text-xs font-black uppercase text-black mb-1">Unique Keyframes Saved</div>
+                <div className="text-3xl font-black text-black">{ingestData.unique_frames}</div>
+              </div>
+
+              <div className="bg-white border-2 border-black rounded-2xl p-5 shadow-brutal">
+                <div className="text-xs font-black uppercase text-slate-600 mb-1">Redundant Filtered</div>
+                <div className="text-3xl font-black text-black">{ingestData.removed_frames}</div>
+              </div>
+
+              <div className="bg-white border-2 border-black rounded-2xl p-5 shadow-brutal">
+                <div className="text-xs font-black uppercase text-slate-600 mb-1">Transcripts Extracted</div>
+                <div className="text-3xl font-black text-black">{ingestData.transcripts_count}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* RAG SEARCH RESULTS CONTAINER */}
+        {searchData && (
+          <div className="space-y-8">
+            
+            {/* AI SYNTHESIZED RAG ANSWER CARD */}
+            <div className="bg-white border-[2.5px] border-black rounded-2xl p-6 sm:p-8 shadow-brutal relative">
+              <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-lg bg-butterAccent border-2 border-black shadow-[2px_2px_0px_0px_#000] flex items-center justify-center font-bold text-black">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-black text-base uppercase tracking-wider text-black">
+                    RAG Synthesized Answer
                   </h3>
+                </div>
+                <span className="text-xs font-black px-3 py-1 rounded-xl bg-butterCardWarm border-2 border-black shadow-[2px_2px_0px_0px_#000] text-black">
+                  {searchData.engine}
+                </span>
+              </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {searchData.results.map((res, idx) => (
-                      <div key={idx} className="bg-darkCard border border-darkBorder hover:border-slate-700 rounded-xl p-5 transition-colors flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center space-x-2">
-                              <span className={`text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${
-                                res.type === 'transcript'
-                                  ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                                  : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                              }`}>
-                                {res.type}
-                              </span>
-                              {res.uploader && res.uploader !== 'unknown' && (
-                                <span className="text-xs font-medium text-slate-300 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                  <User className="w-3 h-3 text-accentGreen" />
-                                  @{res.uploader}
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-xs text-slate-400 font-mono">
-                              RRF Score: {res.score}
-                            </span>
-                          </div>
+              <div className="text-slate-900 font-medium text-sm leading-relaxed whitespace-pre-line bg-butterBg p-4 rounded-xl border-2 border-black">
+                {searchData.answer}
+              </div>
+            </div>
 
-                          {/* REEL CAPTION */}
-                          {res.caption && (
-                            <div className="mb-3 p-2.5 rounded-lg bg-darkBg/80 border border-darkBorder/60 text-xs text-slate-300">
-                              <div className="flex items-center gap-1 text-slate-400 font-semibold mb-1 text-[11px]">
-                                <MessageSquare className="w-3 h-3 text-indigo-400" />
-                                <span>Reel Caption:</span>
-                              </div>
-                              <p className="line-clamp-2 italic text-slate-300">&quot;{res.caption}&quot;</p>
-                            </div>
-                          )}
+            {/* RETRIEVED MULTIMODAL REELS LIST TABLE/CARDS */}
+            <div className="bg-white border-[2.5px] border-black rounded-2xl p-6 sm:p-8 shadow-brutal">
+              
+              <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
+                <div>
+                  <h3 className="font-black text-xl tracking-tight text-black uppercase">
+                    Retrieved Reels &amp; Evidence ({searchData.results.length})
+                  </h3>
+                  <p className="text-xs font-bold text-slate-600">
+                    Hybrid BM25 + CLIP Dense vectors combined via Reciprocal Rank Fusion (RRF)
+                  </p>
+                </div>
+                <div className="text-xs font-black uppercase bg-butterAccent border-2 border-black px-3 py-1.5 rounded-xl shadow-[2px_2px_0px_0px_#000]">
+                  Query: {searchData.query}
+                </div>
+              </div>
 
-                          {res.type === 'transcript' && res.text && (
-                            <div className="space-y-2 mb-3">
-                              <p className="text-sm text-slate-200 italic">&quot;{res.text}&quot;</p>
-                              {res.timestamp !== undefined && (
-                                <div className="flex items-center text-xs text-slate-400 space-x-1">
-                                  <Clock className="w-3.5 h-3.5" />
-                                  <span>Timestamp: {res.timestamp}s</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
+              {/* REELS GRID CARDS */}
+              <div className="space-y-4">
+                {searchData.results.map((res, idx) => (
+                  <div key={idx} className="bg-butterMuted border-2 border-black rounded-2xl p-5 shadow-brutal-sm hover:shadow-brutal hover:translate-x-[-1px] hover:translate-y-[-1px] transition-all">
+                    
+                    {/* CARD HEADER ROW */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-black/10 pb-3 mb-3">
+                      <div className="flex items-center space-x-2">
+                        <span className={`text-xs font-black px-3 py-1 rounded-lg uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_0px_#000] ${
+                          res.type === 'transcript'
+                            ? 'bg-amber-200 text-black'
+                            : 'bg-emerald-200 text-black'
+                        }`}>
+                          {res.type}
+                        </span>
 
-                          {res.type === 'frame' && (
-                            <div className="space-y-2 mb-3">
-                              {res.timestamp !== undefined && (
-                                <div className="flex items-center text-xs text-slate-400 space-x-1 mb-2">
-                                  <Clock className="w-3.5 h-3.5 text-accentGreen" />
-                                  <span>Visual Frame at: {res.timestamp}s</span>
-                                </div>
-                              )}
-                              {res.frame_path && (
-                                <div className="rounded-lg overflow-hidden border border-darkBorder bg-darkBg">
-                                  <div className="p-2 text-xs font-mono text-slate-400 truncate">
-                                    Frame: {res.frame_path}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        {res.uploader && res.uploader !== 'unknown' && (
+                          <span className="text-xs font-black text-black bg-white border-2 border-black px-3 py-1 rounded-lg shadow-[2px_2px_0px_0px_#000] flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-black" />
+                            @{res.uploader}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        <span className="text-xs font-black text-black bg-white border-2 border-black px-2.5 py-1 rounded-lg shadow-[2px_2px_0px_0px_#000]">
+                          RRF Score: {res.score}
+                        </span>
 
                         {res.webpage_url && (
                           <a
                             href={res.webpage_url}
                             target="_blank"
                             rel="noreferrer"
-                            className="mt-4 pt-3 border-t border-darkBorder/60 flex items-center justify-between text-xs text-slate-400 hover:text-accentGreen transition-colors group"
+                            className="text-xs font-black text-black bg-butterAccent hover:bg-yellow-300 border-2 border-black px-3.5 py-1 rounded-lg shadow-[2px_2px_0px_0px_#000] hover:shadow-brutal-sm transition-all flex items-center gap-1"
                           >
-                            <span className="group-hover:underline">Visit Reel on Instagram ({res.video_id})</span>
-                            <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            <span>Open Reel</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
                           </a>
                         )}
                       </div>
-                    ))}
+                    </div>
+
+                    {/* REEL CAPTION QUOTE BOX */}
+                    {res.caption && (
+                      <div className="mb-3 p-3 rounded-xl bg-white border-2 border-black shadow-[2px_2px_0px_0px_#000] text-xs">
+                        <div className="flex items-center gap-1.5 font-black text-black uppercase tracking-wider mb-1 text-[11px]">
+                          <MessageSquare className="w-3.5 h-3.5 text-black" />
+                          <span>Reel Caption:</span>
+                        </div>
+                        <p className="line-clamp-2 font-semibold italic text-slate-800">&quot;{res.caption}&quot;</p>
+                      </div>
+                    )}
+
+                    {/* TRANSCRIPT / FRAME CONTENT */}
+                    {res.type === 'transcript' && res.text && (
+                      <div className="bg-white p-4 rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_#000]">
+                        <p className="text-sm font-bold text-black italic mb-2">&quot;{res.text}&quot;</p>
+                        {res.timestamp !== undefined && (
+                          <div className="flex items-center text-xs font-black text-slate-700 space-x-1.5">
+                            <Clock className="w-3.5 h-3.5 text-black" />
+                            <span>Speech Timestamp: {res.timestamp}s</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {res.type === 'frame' && (
+                      <div className="bg-white p-4 rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_#000]">
+                        {res.timestamp !== undefined && (
+                          <div className="flex items-center text-xs font-black text-black space-x-1.5 mb-2">
+                            <Clock className="w-3.5 h-3.5 text-black" />
+                            <span>Visual Frame at: {res.timestamp}s</span>
+                          </div>
+                        )}
+                        {res.frame_path && (
+                          <div className="p-2 text-xs font-mono font-bold text-slate-700 bg-butterBg rounded-lg border border-black truncate">
+                            Frame: {res.frame_path}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                   </div>
-                </div>
+                ))}
               </div>
-            )}
+
+            </div>
+
           </div>
         )}
+
       </main>
     </div>
   );
