@@ -11,17 +11,28 @@ import {
   Layers, 
   Film, 
   Sparkles, 
-  Clock,
-  Mic,
-  Loader2,
-  RefreshCw,
-  User,
-  MessageSquare,
-  ArrowRight,
-  Filter
+  Clock, 
+  Mic, 
+  Loader2, 
+  RefreshCw, 
+  User, 
+  MessageSquare, 
+  ArrowRight, 
+  Filter,
+  Globe,
+  Settings,
+  Link2,
+  X,
+  Check,
+  Copy,
+  Terminal,
+  AlertTriangle,
+  Radio,
+  Zap
 } from 'lucide-react';
 
-const API_BASE = 'http://127.0.0.1:8000';
+const RAW_API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
+const DEFAULT_API_BASE = RAW_API_BASE.replace(/\/+$/, '');
 
 interface SearchResult {
   id: string;
@@ -53,10 +64,34 @@ interface IngestResponse {
   webpage_url: string;
 }
 
+interface HealthData {
+  status: string;
+  whisper_loaded?: boolean;
+  clip_loaded?: boolean;
+  vector_db_connected?: boolean;
+  ollama_online?: boolean;
+}
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'search' | 'ingest'>('search');
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [ollamaOnline, setOllamaOnline] = useState<boolean>(false);
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
+
+  // Dynamic Backend & Tunnel URL State
+  const [apiUrl, setApiUrl] = useState<string>(DEFAULT_API_BASE);
+  const [inputUrl, setInputUrl] = useState<string>(DEFAULT_API_BASE);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
+    latency?: number;
+    details?: HealthData;
+  } | null>(null);
+  const [copiedTunnelCmd, setCopiedTunnelCmd] = useState<string | null>(null);
+  const [saveSuccessToast, setSaveSuccessToast] = useState<boolean>(false);
+  const [isClient, setIsClient] = useState<boolean>(false);
 
   // Ingest State
   const [reelUrl, setReelUrl] = useState('');
@@ -70,26 +105,176 @@ export default function Dashboard() {
   const [searchData, setSearchData] = useState<SearchResponse | null>(null);
   const [searchError, setSearchError] = useState('');
 
+  // Centralized fetch helper supporting tunnel headers & trailing slash normalization
+  const apiFetch = async (endpoint: string, options: RequestInit = {}, customBase?: string) => {
+    const base = (customBase || apiUrl).replace(/\/+$/, '');
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const fullUrl = `${base}${cleanEndpoint}`;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      // Bypass tunnel warning screens (e.g. ngrok free tier, localtunnel)
+      'ngrok-skip-browser-warning': 'true',
+      'Bypass-Tunnel-Reminder': 'true',
+      ...((options.headers as Record<string, string>) || {}),
+    };
+
+    return fetch(fullUrl, {
+      ...options,
+      headers,
+    });
+  };
+
   // Check Health of FastAPI Backend
-  const checkHealth = async () => {
+  const checkHealth = async (targetBaseUrl?: string) => {
+    const target = (targetBaseUrl || apiUrl).replace(/\/+$/, '');
     setApiStatus('checking');
     try {
-      const res = await fetch(`${API_BASE}/health`);
+      const startTime = performance.now();
+      const res = await apiFetch('/health', { method: 'GET' }, target);
+      const endTime = performance.now();
+      const duration = Math.round(endTime - startTime);
+
       if (res.ok) {
-        const data = await res.json();
+        const data: HealthData = await res.json();
         setApiStatus('online');
-        setOllamaOnline(data.ollama_online);
+        setOllamaOnline(Boolean(data.ollama_online));
+        setLatencyMs(duration);
+        return { success: true, message: `Connected (${duration}ms)`, latency: duration, details: data };
       } else {
         setApiStatus('offline');
+        setLatencyMs(null);
+        return { success: false, message: `HTTP Error: ${res.status} ${res.statusText}` };
       }
-    } catch {
+    } catch (err: any) {
       setApiStatus('offline');
+      setLatencyMs(null);
+      return { success: false, message: err?.message || 'Failed to connect to backend' };
     }
   };
 
+  // Load saved backend URL from localStorage on initial render
   useEffect(() => {
-    checkHealth();
+    setIsClient(true);
+    let initialUrl = DEFAULT_API_BASE;
+    try {
+      const saved = localStorage.getItem('instareelrag_api_base_url');
+      if (saved && saved.trim()) {
+        initialUrl = saved.trim().replace(/\/+$/, '');
+      }
+    } catch {
+      // ignore storage access errors
+    }
+    setApiUrl(initialUrl);
+    setInputUrl(initialUrl);
+    checkHealth(initialUrl);
   }, []);
+
+  // Mixed content detection (Frontend on HTTPS / Vercel calling plain HTTP backend)
+  const isMixedContent = isClient && typeof window !== 'undefined' && 
+    window.location.protocol === 'https:' && 
+    apiUrl.startsWith('http://');
+
+  // Handle Testing custom URL inside Modal
+  const handleTestConnection = async (urlToTest: string) => {
+    const clean = urlToTest.trim().replace(/\/+$/, '');
+    if (!clean) {
+      setTestResult({ success: false, message: 'Please enter a valid URL' });
+      return;
+    }
+
+    setIsTestingConnection(true);
+    setTestResult(null);
+
+    try {
+      const startTime = performance.now();
+      const res = await apiFetch('/health', { method: 'GET' }, clean);
+      const endTime = performance.now();
+      const duration = Math.round(endTime - startTime);
+
+      if (res.ok) {
+        const data: HealthData = await res.json();
+        setTestResult({
+          success: true,
+          message: `Connected successfully in ${duration}ms!`,
+          latency: duration,
+          details: data,
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: `Server returned HTTP ${res.status}: ${res.statusText}`,
+        });
+      }
+    } catch (err: any) {
+      let msg = err?.message || 'Failed to fetch';
+      if (isClient && window.location.protocol === 'https:' && clean.startsWith('http://')) {
+        msg = 'Blocked by Browser: Mixed Content Error. Vercel is served over HTTPS, so it cannot connect to insecure "http://" URLs. Please use an HTTPS tunnel URL (e.g. from ngrok or Cloudflare).';
+      } else if (msg.includes('Failed to fetch')) {
+        msg = 'Failed to fetch. Verify that the backend server or tunnel is currently running and accessible.';
+      }
+      setTestResult({
+        success: false,
+        message: msg,
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
+  // Save new backend URL to state & localStorage
+  const handleSaveConnection = (newUrl: string) => {
+    const clean = newUrl.trim().replace(/\/+$/, '');
+    if (!clean) return;
+
+    try {
+      localStorage.setItem('instareelrag_api_base_url', clean);
+    } catch {
+      // storage unavailable
+    }
+
+    setApiUrl(clean);
+    setInputUrl(clean);
+    setIsSettingsOpen(false);
+    setTestResult(null);
+    setSaveSuccessToast(true);
+    setTimeout(() => setSaveSuccessToast(false), 4000);
+
+    checkHealth(clean);
+  };
+
+  // Reset to default backend URL
+  const handleResetDefault = () => {
+    try {
+      localStorage.removeItem('instareelrag_api_base_url');
+    } catch {
+      // ignore
+    }
+    setApiUrl(DEFAULT_API_BASE);
+    setInputUrl(DEFAULT_API_BASE);
+    setTestResult(null);
+    setIsSettingsOpen(false);
+    checkHealth(DEFAULT_API_BASE);
+  };
+
+  // Copy tunnel helper commands
+  const copyCommand = (cmd: string, name: string) => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(cmd);
+      setCopiedTunnelCmd(name);
+      setTimeout(() => setCopiedTunnelCmd(null), 2500);
+    }
+  };
+
+  // Display-friendly URL format
+  const formatUrlDisplay = (url: string) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.host;
+    } catch {
+      return url.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    }
+  };
 
   // Handle Reel Ingestion
   const handleIngest = async (e: React.FormEvent) => {
@@ -101,9 +286,8 @@ export default function Dashboard() {
     setIngestData(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/ingest`, {
+      const res = await apiFetch('/api/v1/ingest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: reelUrl.trim() }),
       });
 
@@ -111,11 +295,11 @@ export default function Dashboard() {
         const data = await res.json();
         setIngestData(data);
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ detail: 'Ingestion failed' }));
         setIngestError(err.detail || 'Ingestion failed');
       }
     } catch (err: any) {
-      setIngestError(err.message || 'Connection error to FastAPI backend');
+      setIngestError(err.message || 'Connection error to backend');
     } finally {
       setIsIngesting(false);
     }
@@ -131,9 +315,8 @@ export default function Dashboard() {
     setSearchData(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/search`, {
+      const res = await apiFetch('/api/v1/search', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: query.trim(), top_k: 5 }),
       });
 
@@ -141,11 +324,11 @@ export default function Dashboard() {
         const data = await res.json();
         setSearchData(data);
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ detail: 'Search failed' }));
         setSearchError(err.detail || 'Search failed');
       }
     } catch (err: any) {
-      setSearchError(err.message || 'Connection error to FastAPI backend');
+      setSearchError(err.message || 'Connection error to backend');
     } finally {
       setIsSearching(false);
     }
@@ -154,19 +337,19 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-butterBg text-darkText font-sans selection:bg-butterAccent selection:text-black">
       
-      {/* TOP NEO-BRUTALIST NAVBAR (MATCHING REFERENCE IMAGE) */}
-      <header className="border-b-[2.5px] border-black bg-white py-4 px-4 sm:px-8 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      {/* TOP NEO-BRUTALIST NAVBAR */}
+      <header className="border-b-[2.5px] border-black bg-white py-4 px-4 sm:px-8 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           
           {/* LOGO & TITLE */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-shrink-0">
             <span className="font-black text-2xl tracking-tight text-black">
               InstaReel<span className="text-black">RAG</span>
             </span>
           </div>
 
-          {/* NAVBAR RIGHT-ALIGNED TEXT LINKS (MATCHING REFERENCE UI) */}
-          <div className="flex items-center space-x-5 sm:space-x-8">
+          {/* NAVBAR RIGHT-ALIGNED CONTROLS */}
+          <div className="flex items-center space-x-3 sm:space-x-6">
             <button
               onClick={() => setActiveTab('search')}
               className={`font-black text-sm sm:text-base tracking-tight transition-all cursor-pointer ${
@@ -190,30 +373,120 @@ export default function Dashboard() {
             </button>
 
             <a
-              href={`${API_BASE}/docs`}
+              href={`${apiUrl}/docs`}
               target="_blank"
               rel="noreferrer"
-              className="hidden sm:inline-block font-black text-sm sm:text-base tracking-tight text-slate-800 hover:text-black hover:underline hover:underline-offset-8 transition-all"
+              className="hidden lg:inline-block font-black text-sm sm:text-base tracking-tight text-slate-800 hover:text-black hover:underline hover:underline-offset-8 transition-all"
             >
               API Docs
             </a>
 
-            {/* STATUS BADGE STYLED LIKE GITHUB STAR PILL IN REFERENCE IMAGE */}
-            <div className={`flex items-center space-x-1.5 text-xs font-black px-3.5 py-1.5 rounded-xl border-2 border-black shadow-[2.5px_2.5px_0px_0px_#000] cursor-pointer transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] ${
-              apiStatus === 'online'
-                ? 'bg-butterAccent text-black'
-                : apiStatus === 'offline'
-                ? 'bg-rose-200 text-black'
-                : 'bg-amber-100 text-black'
-            }`} onClick={checkHealth} title="FastAPI Status - Click to Refresh">
-              <CheckCircle2 className="w-3.5 h-3.5 text-black font-bold" />
-              <span>FastAPI</span>
-              <span className="text-amber-700 font-extrabold">★ {apiStatus === 'online' ? 'Online' : 'Offline'}</span>
-            </div>
+            {/* DYNAMIC BACKEND / TUNNEL URL CONFIGURATION BUTTON */}
+            <button
+              onClick={() => {
+                setInputUrl(apiUrl);
+                setTestResult(null);
+                setIsSettingsOpen(true);
+              }}
+              title={`Active Backend: ${apiUrl} (Click to change / attach tunnel link)`}
+              className={`flex items-center space-x-1.5 text-xs font-black px-3 py-1.5 rounded-xl border-2 border-black shadow-[2.5px_2.5px_0px_0px_#000] cursor-pointer transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] ${
+                apiStatus === 'online'
+                  ? 'bg-butterAccent text-black'
+                  : apiStatus === 'offline'
+                  ? 'bg-rose-200 text-black'
+                  : 'bg-amber-100 text-black'
+              }`}
+            >
+              <Radio className={`w-3.5 h-3.5 ${apiStatus === 'online' ? 'text-black animate-pulse' : 'text-slate-700'}`} />
+              <span className="hidden sm:inline font-black">API:</span>
+              <span className="font-mono text-[11px] max-w-[110px] sm:max-w-[140px] truncate">
+                {formatUrlDisplay(apiUrl)}
+              </span>
+              <span className={`text-[10px] uppercase font-black px-1.5 py-0.5 rounded border border-black/20 ${
+                apiStatus === 'online' ? 'bg-black text-butterAccent' : 'bg-black/10 text-black'
+              }`}>
+                {apiStatus === 'online' ? 'Online' : apiStatus === 'offline' ? 'Offline' : '...'}
+              </span>
+              <Settings className="w-3.5 h-3.5 text-black ml-0.5" />
+            </button>
+
           </div>
 
         </div>
       </header>
+
+      {/* SUCCESS TOAST FOR URL UPDATE */}
+      {saveSuccessToast && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4">
+          <div className="bg-emerald-300 border-2 border-black rounded-xl p-3 shadow-brutal-sm flex items-center justify-between text-black font-bold text-xs">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-black" />
+              <span>Backend API URL updated to <strong className="font-mono">{apiUrl}</strong> and saved!</span>
+            </div>
+            <button onClick={() => setSaveSuccessToast(false)} className="text-black hover:opacity-75 font-black text-sm">✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* MIXED CONTENT WARNING BANNER (CRITICAL FOR VERCEL + LOCAL Tunnels) */}
+      {isMixedContent && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4">
+          <div className="bg-amber-200 border-2 border-black rounded-2xl p-4 sm:p-5 shadow-brutal flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-black">
+            <div className="flex items-start space-x-3">
+              <AlertTriangle className="w-6 h-6 flex-shrink-0 text-black mt-0.5" />
+              <div>
+                <h4 className="font-black text-sm uppercase tracking-wide">
+                  Browser Mixed Content Warning (HTTPS to HTTP)
+                </h4>
+                <p className="text-xs font-semibold text-slate-800 mt-1 max-w-3xl">
+                  This frontend is hosted on <strong>HTTPS (Vercel)</strong>, but your Backend URL is currently configured with insecure HTTP (<code className="bg-white/60 px-1 py-0.5 rounded font-mono font-bold">{apiUrl}</code>). Modern web browsers automatically block insecure HTTP requests on HTTPS websites.
+                  Please launch an <strong>HTTPS tunnel</strong> (e.g. via Cloudflare Tunnel or ngrok) and attach the tunnel link below.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setInputUrl(apiUrl);
+                setTestResult(null);
+                setIsSettingsOpen(true);
+              }}
+              className="px-4 py-2 bg-black text-butterAccent rounded-xl border-2 border-black font-black text-xs uppercase tracking-wider shadow-brutal-sm hover:translate-x-[-1px] hover:translate-y-[-1px] transition-all whitespace-nowrap flex items-center space-x-1.5"
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              <span>Attach HTTPS Tunnel</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* OFFLINE HELPER BANNER */}
+      {apiStatus === 'offline' && !isMixedContent && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4">
+          <div className="bg-rose-100 border-2 border-black rounded-2xl p-4 shadow-brutal-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-black">
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 text-black" />
+              <div>
+                <span className="font-black text-xs uppercase tracking-wide block">
+                  Backend Unreachable ({apiUrl})
+                </span>
+                <span className="text-xs font-semibold text-slate-700">
+                  Running backend locally while viewing from Vercel? Attach an HTTPS tunnel link (ngrok or Cloudflare) to connect your local models.
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setInputUrl(apiUrl);
+                setTestResult(null);
+                setIsSettingsOpen(true);
+              }}
+              className="px-3.5 py-1.5 bg-white hover:bg-butterAccent text-black rounded-xl border-2 border-black font-black text-xs uppercase tracking-wider shadow-[2px_2px_0px_0px_#000] hover:translate-x-[-1px] hover:translate-y-[-1px] transition-all whitespace-nowrap"
+            >
+              Configure Tunnel Link
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* HERO SECTION */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-4">
@@ -234,7 +507,7 @@ export default function Dashboard() {
         <div className="bg-butterCard border-[2.5px] border-black rounded-2xl p-6 sm:p-8 shadow-brutal mb-8">
           
           {/* CARD TOP INFO ROW */}
-          <div className="flex items-center justify-between gap-4 mb-6 border-b-2 border-black pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b-2 border-black pb-4">
             <div className="text-xs font-black uppercase tracking-widest text-black flex items-center gap-2">
               {activeTab === 'search' ? (
                 <>
@@ -249,9 +522,18 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="text-xs font-extrabold text-black uppercase tracking-wider flex items-center gap-1.5 bg-white border-2 border-black px-3 py-1.5 rounded-xl shadow-[2px_2px_0px_0px_#000]">
-              <Cpu className="w-3.5 h-3.5 text-black" />
-              <span>Ollama Model: {ollamaOnline ? 'Online (Qwen2-VL)' : 'Local Fallback'}</span>
+            <div className="flex items-center gap-2">
+              <div className="text-xs font-extrabold text-black uppercase tracking-wider flex items-center gap-1.5 bg-white border-2 border-black px-3 py-1.5 rounded-xl shadow-[2px_2px_0px_0px_#000]">
+                <Cpu className="w-3.5 h-3.5 text-black" />
+                <span>Ollama: {ollamaOnline ? 'Online (Qwen2-VL)' : 'Local Fallback'}</span>
+              </div>
+
+              {latencyMs !== null && (
+                <div className="hidden sm:flex text-xs font-extrabold text-black uppercase tracking-wider items-center gap-1 bg-white border-2 border-black px-2.5 py-1.5 rounded-xl shadow-[2px_2px_0px_0px_#000]">
+                  <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                  <span>{latencyMs}ms</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -446,7 +728,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* RETRIEVED MULTIMODAL REELS LIST TABLE/CARDS */}
+            {/* RETRIEVED MULTIMODAL REELS LIST */}
             <div className="bg-white border-[2.5px] border-black rounded-2xl p-6 sm:p-8 shadow-brutal">
               
               <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-6">
@@ -556,6 +838,298 @@ export default function Dashboard() {
         )}
 
       </main>
+
+      {/* ======================================================== */}
+      {/* BACKEND API & TUNNEL CONFIGURATION MODAL */}
+      {/* ======================================================== */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto animate-fadeIn">
+          <div className="bg-butterCard border-[3px] border-black rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-brutal-lg relative my-8 max-h-[90vh] overflow-y-auto text-black">
+            
+            {/* MODAL HEADER */}
+            <div className="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-butterAccent border-2 border-black shadow-[2px_2px_0px_0px_#000] flex items-center justify-center font-bold">
+                  <Globe className="w-5 h-5 text-black" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-black">
+                    Backend &amp; Tunnel Connection
+                  </h2>
+                  <p className="text-xs font-bold text-slate-700">
+                    Connect Vercel to your local FastAPI backend using a tunnel or custom cloud URL
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsSettingsOpen(false)}
+                className="w-8 h-8 rounded-lg bg-white hover:bg-rose-200 border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_#000] transition-all"
+              >
+                <X className="w-4 h-4 text-black" />
+              </button>
+            </div>
+
+            {/* CURRENT ACTIVE CONNECTION STATUS CARD */}
+            <div className="bg-white border-2 border-black rounded-xl p-4 shadow-brutal-sm mb-6 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 block">
+                  Active Backend URL
+                </span>
+                <span className="font-mono font-bold text-sm text-black break-all">
+                  {apiUrl}
+                </span>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <span className={`text-xs font-black px-3 py-1 rounded-lg uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_0px_#000] ${
+                  apiStatus === 'online'
+                    ? 'bg-butterAccent text-black'
+                    : apiStatus === 'offline'
+                    ? 'bg-rose-200 text-black'
+                    : 'bg-amber-100 text-black'
+                }`}>
+                  ● {apiStatus === 'online' ? 'Online' : apiStatus === 'offline' ? 'Offline' : 'Checking'}
+                </span>
+
+                <button
+                  onClick={() => checkHealth(apiUrl)}
+                  title="Ping Active Connection"
+                  className="p-1.5 rounded-lg bg-butterMuted hover:bg-butterAccent border-2 border-black shadow-[2px_2px_0px_0px_#000] transition-all"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-black" />
+                </button>
+              </div>
+            </div>
+
+            {/* URL INPUT FORM */}
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="text-xs font-black uppercase tracking-wider text-black block mb-1.5">
+                  Backend API Base URL (Tunnel / Localhost / Cloud)
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Link2 className="h-4 w-4 text-black font-bold" />
+                  </div>
+                  <input
+                    type="text"
+                    value={inputUrl}
+                    onChange={(e) => {
+                      setInputUrl(e.target.value);
+                      setTestResult(null);
+                    }}
+                    placeholder="https://xxxx-xx.ngrok-free.app or https://xxx.trycloudflare.com"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border-2 border-black text-black font-mono font-bold text-sm focus:outline-none shadow-[2px_2px_0px_0px_#000] focus:shadow-brutal transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* QUICK PRESET CHIPS */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-black uppercase text-slate-700">Quick Presets:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputUrl('http://127.0.0.1:8000');
+                    setTestResult(null);
+                  }}
+                  className="text-xs font-bold font-mono bg-white hover:bg-butterAccent border border-black px-2.5 py-1 rounded-lg shadow-[1.5px_1.5px_0px_0px_#000] transition-all"
+                >
+                  127.0.0.1:8000
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputUrl('http://localhost:8000');
+                    setTestResult(null);
+                  }}
+                  className="text-xs font-bold font-mono bg-white hover:bg-butterAccent border border-black px-2.5 py-1 rounded-lg shadow-[1.5px_1.5px_0px_0px_#000] transition-all"
+                >
+                  localhost:8000
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputUrl(DEFAULT_API_BASE);
+                    setTestResult(null);
+                  }}
+                  className="text-xs font-bold font-mono bg-white hover:bg-butterAccent border border-black px-2.5 py-1 rounded-lg shadow-[1.5px_1.5px_0px_0px_#000] transition-all"
+                >
+                  Default (.env)
+                </button>
+              </div>
+
+              {/* TEST RESULT FEEDBACK BOX */}
+              {testResult && (
+                <div className={`p-4 rounded-xl border-2 border-black text-xs font-bold shadow-brutal-sm flex items-start space-x-3 ${
+                  testResult.success ? 'bg-emerald-200' : 'bg-rose-200'
+                }`}>
+                  {testResult.success ? (
+                    <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-black mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 text-black mt-0.5" />
+                  )}
+                  <div className="space-y-1">
+                    <span className="font-extrabold uppercase block tracking-wider">
+                      {testResult.success ? 'Connection Successful!' : 'Connection Test Failed'}
+                    </span>
+                    <p className="text-slate-900 leading-snug">{testResult.message}</p>
+                    {testResult.details && (
+                      <div className="mt-2 text-[11px] font-mono bg-white/70 p-2 rounded-lg border border-black/20 space-y-0.5">
+                        <div>Whisper Loaded: {String(testResult.details.whisper_loaded)}</div>
+                        <div>CLIP Loaded: {String(testResult.details.clip_loaded)}</div>
+                        <div>Vector DB: {String(testResult.details.vector_db_connected)}</div>
+                        <div>Ollama Online: {String(testResult.details.ollama_online)}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ACTION BUTTONS (TEST & SAVE) */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => handleTestConnection(inputUrl)}
+                  disabled={isTestingConnection || !inputUrl.trim()}
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white hover:bg-butterAccent text-black font-black text-xs uppercase tracking-wider border-2 border-black shadow-brutal-sm hover:translate-x-[-1px] hover:translate-y-[-1px] active:translate-x-[1px] active:translate-y-[1px] disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
+                >
+                  {isTestingConnection ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-black" />
+                      <span>Testing Link...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4 text-black" />
+                      <span>Test Ping (/health)</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSaveConnection(inputUrl)}
+                  disabled={!inputUrl.trim()}
+                  className="w-full sm:flex-1 px-5 py-3 rounded-xl bg-black hover:bg-slate-900 text-butterAccent font-black text-xs uppercase tracking-wider border-2 border-black shadow-brutal-sm hover:translate-x-[-1px] hover:translate-y-[-1px] active:translate-x-[1px] active:translate-y-[1px] disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
+                >
+                  <Check className="w-4 h-4 text-butterAccent" />
+                  <span>Save &amp; Connect URL</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResetDefault}
+                  className="w-full sm:w-auto px-4 py-3 rounded-xl bg-slate-200 hover:bg-slate-300 text-black font-extrabold text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_0px_#000] transition-all"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            {/* TUNNEL CREATION CHEAT SHEET (1-CLICK COPY COMMANDS) */}
+            <div className="border-t-2 border-black pt-5 space-y-3">
+              <div className="flex items-center space-x-2">
+                <Terminal className="w-4 h-4 text-black" />
+                <h3 className="font-black text-xs uppercase tracking-wider text-black">
+                  How to Expose Local Backend via HTTPS Tunnel
+                </h3>
+              </div>
+              <p className="text-xs font-semibold text-slate-700 leading-relaxed">
+                When hosting this frontend on Vercel, browsers require an <strong>HTTPS</strong> tunnel URL so requests are not blocked by browser Mixed Content rules. Run any of these commands on your local machine:
+              </p>
+
+              <div className="grid grid-cols-1 gap-2.5">
+                
+                {/* 1. Cloudflare Tunnel */}
+                <div className="bg-white border-2 border-black rounded-xl p-3 shadow-brutal-sm flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-black uppercase text-black flex items-center gap-1.5">
+                      <span>Cloudflare Tunnel</span>
+                      <span className="text-[10px] bg-emerald-200 px-1.5 py-0.2 rounded border border-black font-bold">100% Free / No Signup</span>
+                    </div>
+                    <code className="text-xs font-mono font-bold text-slate-800 block truncate mt-0.5">
+                      cloudflared tunnel --url http://localhost:8000
+                    </code>
+                  </div>
+                  <button
+                    onClick={() => copyCommand('cloudflared tunnel --url http://localhost:8000', 'cloudflare')}
+                    className="p-2 rounded-lg bg-butterBg hover:bg-butterAccent border border-black shadow-[1.5px_1.5px_0px_0px_#000] text-black transition-all flex-shrink-0"
+                    title="Copy command"
+                  >
+                    {copiedTunnelCmd === 'cloudflare' ? <Check className="w-4 h-4 text-black" /> : <Copy className="w-4 h-4 text-black" />}
+                  </button>
+                </div>
+
+                {/* 2. ngrok */}
+                <div className="bg-white border-2 border-black rounded-xl p-3 shadow-brutal-sm flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-black uppercase text-black flex items-center gap-1.5">
+                      <span>ngrok</span>
+                      <span className="text-[10px] bg-butterAccent px-1.5 py-0.2 rounded border border-black font-bold">Automatic Header Bypass</span>
+                    </div>
+                    <code className="text-xs font-mono font-bold text-slate-800 block truncate mt-0.5">
+                      ngrok http 8000
+                    </code>
+                  </div>
+                  <button
+                    onClick={() => copyCommand('ngrok http 8000', 'ngrok')}
+                    className="p-2 rounded-lg bg-butterBg hover:bg-butterAccent border border-black shadow-[1.5px_1.5px_0px_0px_#000] text-black transition-all flex-shrink-0"
+                    title="Copy command"
+                  >
+                    {copiedTunnelCmd === 'ngrok' ? <Check className="w-4 h-4 text-black" /> : <Copy className="w-4 h-4 text-black" />}
+                  </button>
+                </div>
+
+                {/* 3. localtunnel */}
+                <div className="bg-white border-2 border-black rounded-xl p-3 shadow-brutal-sm flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-black uppercase text-black flex items-center gap-1.5">
+                      <span>Localtunnel (npx)</span>
+                      <span className="text-[10px] bg-slate-200 px-1.5 py-0.2 rounded border border-black font-bold">No Install Required</span>
+                    </div>
+                    <code className="text-xs font-mono font-bold text-slate-800 block truncate mt-0.5">
+                      npx localtunnel --port 8000
+                    </code>
+                  </div>
+                  <button
+                    onClick={() => copyCommand('npx localtunnel --port 8000', 'localtunnel')}
+                    className="p-2 rounded-lg bg-butterBg hover:bg-butterAccent border border-black shadow-[1.5px_1.5px_0px_0px_#000] text-black transition-all flex-shrink-0"
+                    title="Copy command"
+                  >
+                    {copiedTunnelCmd === 'localtunnel' ? <Check className="w-4 h-4 text-black" /> : <Copy className="w-4 h-4 text-black" />}
+                  </button>
+                </div>
+
+                {/* 4. Pinggy */}
+                <div className="bg-white border-2 border-black rounded-xl p-3 shadow-brutal-sm flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-black uppercase text-black flex items-center gap-1.5">
+                      <span>Pinggy (SSH One-Liner)</span>
+                      <span className="text-[10px] bg-slate-200 px-1.5 py-0.2 rounded border border-black font-bold">Runs directly in terminal</span>
+                    </div>
+                    <code className="text-xs font-mono font-bold text-slate-800 block truncate mt-0.5">
+                      ssh -p 443 -R0:localhost:8000 a.pinggy.io
+                    </code>
+                  </div>
+                  <button
+                    onClick={() => copyCommand('ssh -p 443 -R0:localhost:8000 a.pinggy.io', 'pinggy')}
+                    className="p-2 rounded-lg bg-butterBg hover:bg-butterAccent border border-black shadow-[1.5px_1.5px_0px_0px_#000] text-black transition-all flex-shrink-0"
+                    title="Copy command"
+                  >
+                    {copiedTunnelCmd === 'pinggy' ? <Check className="w-4 h-4 text-black" /> : <Copy className="w-4 h-4 text-black" />}
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

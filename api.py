@@ -41,7 +41,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for Streamlit / Web Clients
+# Enable CORS for Streamlit / Web Clients / Vercel
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -49,6 +49,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/", tags=["Root"])
+def root():
+    return {
+        "name": "InstaReelRAG API",
+        "status": "online",
+        "docs": "/docs",
+        "health": "/health"
+    }
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 def health_check():
@@ -178,6 +187,8 @@ def search_reel(req: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
+    import os
     import uvicorn
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("api:app", host="0.0.0.0", port=port, reload=True)
 

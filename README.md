@@ -132,12 +132,43 @@ Open `http://localhost:3000` in your web browser.
 3. Click **Load unpacked** and select the `extension/` directory inside this repository.
 4. Navigate to Instagram (`https://www.instagram.com/saved/`), open the extension popup, and click **Start Auto-Scroll & Scrape**.
 
-## API Endpoints
+## Cloud Deployment
 
-- `GET /health`: Returns server status, loaded models, and Ollama connection status.
-- `POST /api/v1/ingest`: Ingests a single Reel URL.
-- `POST /api/v1/ingest/batch`: Ingests a list of Reel URLs collected by the Chrome extension.
-- `POST /api/v1/search`: Executes hybrid vector search and returns grounded RAG answers with creator handles, timestamps, and captions.
+### 1. Frontend on Vercel (Next.js)
+
+1. Import your GitHub repository into Vercel (https://vercel.com/new).
+2. In Project Settings, set **Root Directory** to `frontend`.
+3. Under **Environment Variables**, optionally set:
+   - `NEXT_PUBLIC_API_BASE_URL`: Defaults to `http://127.0.0.1:8000`, or set to your default cloud backend endpoint.
+4. Click **Deploy**. Vercel will build and host your web application.
+
+### 2. Connecting Vercel to a Local Backend via Tunnel Link
+
+When your frontend is hosted on Vercel (`https://...`), web browsers block direct unencrypted `http://localhost` calls due to Mixed Content security rules. You can connect your Vercel deployment to your local machine using a free HTTPS tunnel:
+
+1. Start your local backend:
+   ```bash
+   python api.py
+   ```
+2. Start an HTTPS tunnel in another terminal (choose any):
+   - **Cloudflare Tunnel (Free, No Sign-up)**:
+     ```bash
+     cloudflared tunnel --url http://localhost:8000
+     ```
+   - **ngrok (Free)**:
+     ```bash
+     ngrok http 8000
+     ```
+   - **Localtunnel (Free via npx)**:
+     ```bash
+     npx localtunnel --port 8000
+     ```
+   - **Pinggy (SSH one-liner, no installation)**:
+     ```bash
+     ssh -p 443 -R0:localhost:8000 a.pinggy.io
+     ```
+3. Open your Vercel web app, click the **Backend: API** status pill in the navbar, paste your HTTPS tunnel link, and click **Save & Connect URL**. The setting is automatically saved to your browser's local storage and used for all searches, ingestions, and health checks.
+
 
 ## License
 

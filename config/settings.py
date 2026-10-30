@@ -5,7 +5,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Data Directories
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = Path(os.getenv("DATA_DIR", str(BASE_DIR / "data")))
 RAW_REELS_DIR = DATA_DIR / "raw_reels"
 AUDIO_DIR = DATA_DIR / "audio"
 KEYFRAMES_DIR = DATA_DIR / "keyframes"
